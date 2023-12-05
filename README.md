@@ -2,16 +2,17 @@
 
 ## With cloud-init
 
-Remove existing
+Create `.secrets` file with the follwing content:
 
 ```
-lxc rm mystack --force
+export JWT_SECRET=your_jwt_secret
+export MONGODB_ATLAS_URI="your_mongodb_connnect_string"
 ```
 
-Launch new 
+To drop existing and create and launch a new VM use
 
 ```
-lxc launch ubuntu:22.04 mystack -c cloud-init.user-data="$(cat mystack.yaml)"
+./lscript
 ```
 
 Notes:

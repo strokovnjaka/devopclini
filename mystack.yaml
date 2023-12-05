@@ -1,16 +1,17 @@
 #cloud-config
-# Change the following below:
-# <jwt secret>
-# <mongodb connection string>
 #
+# Change the following tokens in the config below:
+# __JWT_SECRET__
+# __MONGODB_ATLAS_URI__
+
 package-upgrade: true
 packages:
   - nginx
   - certbot
+  - gnupg 
+  # picking version does not seem to work, using snap in runcmd
   #- [nodejs, 20.10.0]
-  #- nodejs
   #- [npm, 10.2.3]
-  #- npm
 write_files:
   - owner: www-data:www-data
     path: /etc/nginx/sites-available/default
@@ -18,7 +19,7 @@ write_files:
       server {
         listen 80;
         location / {
-          proxy_pass http://localhost:3000;
+          proxy_pass http://127.0.0.1:3000;
           proxy_http_version 1.1;
           proxy_set_header Upgrade $http_upgrade;
           proxy_set_header Connection keep-alive;
@@ -27,18 +28,40 @@ write_files:
         }
       }
 runcmd:
+  # install mongodb
+  - echo "INSTALLING MONGODB"
+  - curl -fsSL https://pgp.mongodb.com/server-7.0.asc | sudo gpg -o /usr/share/keyrings/mongodb-server-7.0.gpg --dearmor
+  - echo "deb [ arch=amd64,arm64 signed-by=/usr/share/keyrings/mongodb-server-7.0.gpg ] https://repo.mongodb.org/apt/ubuntu jammy/mongodb-org/7.0 multiverse" | sudo tee /etc/apt/sources.list.d/mongodb-org-7.0.list
+  - apt-get update
+  - apt-get install -y mongodb-org
+  - systemctl daemon-reload
+  - systemctl enable mongod
+  - systemctl start mongod
+  - echo "INSTALLED MONGODB"
+  # only leave ssh, http/s open
+  - ufw default deny
+  - ufw allow 22
+  - ufw allow 80
+  - ufw allow 443
+  - ufw enable
+  # mongodb with snap
+  #- snap install mongo22 
   # node with snap as correct version not available with packages
   - snap install node --classic
   # clone app from github
   - su -c 'cd ~ && git clone https://github.com/strokovnjaka/shroomate' - ubuntu
   # install dependencies
   - su -c 'cd ~/shroomate && npm install --legacy-peer-deps' - ubuntu
+  # initialize db
+  - su -c 'cd ~/shroomate && npm run init:db-local'
   # write the required .env file
   - |
     su -c 'cd ~/shroomate && echo "
     # environment
     NODE_ENV=production
     # JWT secret
-    JWT_SECRET=<jwt secret>
+    JWT_SECRET=__JWT_SECRET__
     # MongoDB access
-    MONGODB_ATLAS_URI=\"<mongodb connection string>\"" > .env' - ubuntu
+    MONGODB_ATLAS_URI=\"__MONGODB_ATLAS_URI__\"" > .env' - ubuntu
+  # start the app
+  - su -c 'cd ~/shroomate && npm start' - ubuntu
