@@ -1,0 +1,44 @@
+#cloud-config
+# Change the following below:
+# <jwt secret>
+# <mongodb connection string>
+#
+package-upgrade: true
+packages:
+  - nginx
+  - certbot
+  #- [nodejs, 20.10.0]
+  #- nodejs
+  #- [npm, 10.2.3]
+  #- npm
+write_files:
+  - owner: www-data:www-data
+    path: /etc/nginx/sites-available/default
+    content: |
+      server {
+        listen 80;
+        location / {
+          proxy_pass http://localhost:3000;
+          proxy_http_version 1.1;
+          proxy_set_header Upgrade $http_upgrade;
+          proxy_set_header Connection keep-alive;
+          proxy_set_header Host $host;
+          proxy_cache_bypass $http_upgrade;
+        }
+      }
+runcmd:
+  # node with snap as correct version not available with packages
+  - snap install node --classic
+  # clone app from github
+  - su -c 'cd ~ && git clone https://github.com/strokovnjaka/shroomate' - ubuntu
+  # install dependencies
+  - su -c 'cd ~/shroomate && npm install --legacy-peer-deps' - ubuntu
+  # write the required .env file
+  - |
+    su -c 'cd ~/shroomate && echo "
+    # environment
+    NODE_ENV=production
+    # JWT secret
+    JWT_SECRET=<jwt secret>
+    # MongoDB access
+    MONGODB_ATLAS_URI=\"<mongodb connection string>\"" > .env' - ubuntu

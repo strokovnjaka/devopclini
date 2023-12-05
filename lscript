@@ -1,0 +1,4 @@
+lxc rm mystack --force ; lxc launch ubuntu:22.04 mystack -c cloud-init.user-data="$(cat mystack.yaml)"
+# lxc shell mystack
+
+
