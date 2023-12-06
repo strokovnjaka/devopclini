@@ -1,5 +1,19 @@
-lxc rm mystack --force
-source ./.secrets
-lxc launch ubuntu:22.04 mystack -c cloud-init.user-data="$(m4 -D __JWT_SECRET__="$JWT_SECRET" -D __MONGODB_ATLAS_URI__="$MONGODB_ATLAS_URI" mystack.yaml)"
-lxc info mystack | grep ".*inet:.*(global)"
-# lxc shell mystack
+echo "Removing existing mystack"
+lxc rm mystack -f 2>/dev/null
+echo "Importing secrets"
+source ./.secrets || exit 1
+lxc launch ubuntu:22.04 mystack --vm -c cloud-init.user-data="$(m4 -D __JWT_SECRET__="$JWT_SECRET" -D __MONGODB_ATLAS_URI__="$MONGODB_ATLAS_URI" mystack.yaml)" || exit 1
+##lxc start mystack --console
+echo "Waiting for mystack to get up and running"
+until lxc exec mystack -- cloud-init status --wait 2>/dev/null; do echo -n .; sleep 1; done
+echo "Getting mystack's ip"
+ip=$(lxc info mystack | pcregrep -o1 "^.*inet: *([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+).*(global).*$")
+echo "Testing the mystack app"
+OUT=$(curl $ip/api/users 2>/dev/null)
+if [ $? ] && [[ $OUT =~ ^\[\{\"_id\":.*\}\] ]]; then 
+  echo "Success!"
+else
+  echo "Something went wrong, got ($?) with output:"
+  echo "$OUT"
+fi
+echo "Done"
