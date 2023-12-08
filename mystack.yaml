@@ -1,9 +1,4 @@
 #cloud-config
-#
-# Change the following tokens in the config below:
-# __JWT_SECRET__
-# __MONGODB_ATLAS_URI__
-
 package-upgrade: true
 packages:
   - nginx
@@ -54,20 +49,17 @@ runcmd:
   # install dependencies
   - su -c 'cd ~/shroomate && npm install --legacy-peer-deps' - ubuntu
   # initialize db
-  - su -c 'cd ~/shroomate && npm run init:db-local'
+  - su -c 'cd ~/shroomate && npm run init:db-local' - ubuntu
   # write the required .env file
   - |
     su -c 'cd ~/shroomate && echo "
     # environment
     NODE_ENV=production
     # JWT secret
-    JWT_SECRET=__JWT_SECRET__
+    JWT_SECRET=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 32)
     # MongoDB access
-    MONGODB_ATLAS_URI=\"__MONGODB_ATLAS_URI__\"" > .env' - ubuntu
-  # start and stop the app
+    MONGODB_ATLAS_URI=\"mongodb://127.0.0.1:27017/shroomate?directConnection=true&serverSelectionTimeoutMS=2000&appName=mongosh+2.1.1\"" > .env' - ubuntu
+  # start the app, prepare it to daemonize
   - su -c 'cd ~/shroomate && pm2 start app.js && pm2 save && pm2 startup systemd' - ubuntu
-  #- su -c 'cd ~/shroomate && pm2 start app.js' - ubuntu
   # daemonize the app
   - env PATH=$PATH:/snap/node/8007/bin /usr/local/lib/node_modules/pm2/bin/pm2 startup systemd -u ubuntu --hp /home/ubuntu
-  #- systemctl start pm2-ubuntu
-  #- su -c 'cd ~/shroomate && npm start &' - ubuntu

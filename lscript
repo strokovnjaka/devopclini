@@ -1,13 +1,24 @@
+#!/bin/bash
 echo "Removing existing mystack"
 lxc rm mystack -f 2>/dev/null
-echo "Importing secrets"
-source ./.secrets || exit 1
-lxc launch ubuntu:22.04 mystack --vm -c cloud-init.user-data="$(m4 -D __JWT_SECRET__="$JWT_SECRET" -D __MONGODB_ATLAS_URI__="$MONGODB_ATLAS_URI" mystack.yaml)" || exit 1
-##lxc start mystack --console
+
+lxc launch ubuntu:22.04 mystack --vm -c cloud-init.user-data="$(cat mystack.yaml)" || exit 1
+
 echo "Waiting for mystack to get up and running"
-until lxc exec mystack -- cloud-init status --wait 2>/dev/null; do echo -n .; sleep 1; done
-echo "Getting mystack's ip"
+#exec 5>&1
+until OUT=$(lxc exec mystack -- cloud-init status --wait 2>/dev/null | tee /dev/tty; exit ${PIPESTATUS[0]}); do 
+  if [[ ! -z "$OUT" ]]; then
+    echo "Something went wrong, probably with cloud-init, see cloud-init log with e.g."
+    echo -e "\033[0;32mlxc exec mystack -- cat /var/log/cloud-init-output.log | less\033[0m"
+    break
+  fi
+  echo -n .; sleep 1; 
+done
+
+echo -n "Getting mystack's ip"
 ip=$(lxc info mystack | pcregrep -o1 "^.*inet: *([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+).*(global).*$")
+echo ": $ip"
+
 echo "Testing the mystack app"
 OUT=$(curl $ip/api/users 2>/dev/null)
 if [ $? ] && [[ $OUT =~ ^\[\{\"_id\":.*\}\] ]]; then 
@@ -16,4 +27,5 @@ else
   echo "Something went wrong, got ($?) with output:"
   echo "$OUT"
 fi
+
 echo "Done"

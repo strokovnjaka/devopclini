@@ -1,8 +1,0 @@
-#!/bin/bash
-ip=$(lxc info mystack | pcregrep -o1 "^.*inet: *([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+).*(global).*$")
-
-echo Trying to get users from the app at $ip...
-curl $ip/api/users
-
-echo
-echo Done.
