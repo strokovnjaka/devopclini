@@ -2,12 +2,25 @@
 
 ## With `cloud-init`
 
-There is a self-describing bash script `lscript` that drops existing, creates, launches, and tests the deployed `shroomate` app in a new VM.
+With this recipe a [Shroomate](https://github.com/strokovnjaka/shroomate) demo app stack can be deployed on a VM with `lxd`.
 
-Requirements for `lscript`: 
-- `pcregrep` for getting VM's IP, install with `sudo apt-get install pcregrep`
+The recipe consists of a self-explanatory bash script `lscript` that drops existing, creates, launches, and tests the deployed `shroomate` app in a new VM.
 
-### Notes to `cloud-init` variant:
+### Prerequisites
+
+1. `lxd init --auto` to initialize lxd stuff
+2. `sudo snap refresh lxd --channel latest/stable` needed if broken LTS `lxd 5.0.2` is present
+3. `sudo apt-get update && sudo apt-get install pcregrep` for getting VM's IP in the `lscript`
+
+### Deploy
+
+To deploy a new VM running `shroomate` app stack and check that it's working run
+
+```
+git clone https://github.com/strokovnjaka/devopclini && cd devopclini && ./lscript
+```
+
+### Notes:
 
 - `write_files` messes permissions with created dirs, filling data in `runcmd`
 - `nodejs not` installable with `packages` directive, using `snap` instead
@@ -18,4 +31,6 @@ Requirements for `lscript`:
   2. get domain
   3. put both into a DNS
   4. setup certificate handling e.g. `certbot`
+  5. setup an `nginx` https site for the app
+- [Shroomate](https://github.com/strokovnjaka/shroomate) repo is publicly accessible
 
